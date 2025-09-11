@@ -226,15 +226,19 @@ async def test_database_connection():
         deps = AgentDeps()
         await deps.initialize()
         
-        # Test basic database connectivity
-        async with deps.db_pool.acquire() as conn:
-            result = await conn.fetchval("SELECT 1")
+        # Test basic database connectivity if pool exists
+        if deps.db_pool and hasattr(deps.db_pool, 'acquire'):
+            async with deps.db_pool.acquire() as conn:
+                result = await conn.fetchval("SELECT 1")
+        else:
+            result = "Database pool is None - fallback mode active"
         
         return {
             "status": "success",
-            "database_connection": True,
+            "database_connection": deps.db_pool is not None,
             "test_query_result": result,
-            "db_pool_initialized": deps.db_pool.pool is not None
+            "db_pool_initialized": deps.db_pool.pool is not None if deps.db_pool else False,
+            "fallback_mode": deps.db_pool is None
         }
         
     except Exception as e:
