@@ -1,2 +1,15 @@
-fastapi==0.100.0
-hypercorn==0.14.4
+fastapi
+uvicorn[standard]
+asyncpg
+openai
+tiktoken
+pgvector
+psycopg2-binary
+pydantic
+pydantic-ai
+pydantic-settings
+python-dotenv
+numpy
+aiohttp
+requests
+python-multipart
