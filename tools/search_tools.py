@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 import asyncpg
 import json
 from shared.ai.agent_deps import AgentDeps
+from shared.monitoring.tracing import get_tracer
 
 
 class SearchResult(BaseModel):
@@ -19,6 +20,7 @@ class SearchResult(BaseModel):
     document_source: str
 
 
+@get_tracer().trace_search_operation("semantic")
 async def semantic_search(
     ctx: RunContext[AgentDeps],
     query: str,
@@ -98,6 +100,7 @@ async def semantic_search(
         return []
 
 
+@get_tracer().trace_search_operation("hybrid")
 async def hybrid_search(
     ctx: RunContext[AgentDeps],
     query: str,
@@ -173,6 +176,7 @@ async def hybrid_search(
         return []
 
 
+@get_tracer().trace_search_operation("recent_documents")
 async def get_recent_documents(
     ctx: RunContext[AgentDeps],
     limit: int = 5,

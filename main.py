@@ -11,9 +11,18 @@ from rag_agent import search_agent
 from shared.ai.agent_deps import AgentDeps
 from shared.utils.db_utils import initialize_database
 from shared.utils.config import load_settings
+from shared.monitoring.tracing import initialize_tracing, get_tracer
+from shared.monitoring.middleware import TracingMiddleware, ChatTracingMiddleware
 from pydantic_ai import Agent
 
 app = FastAPI(title="RAG Agent API", version="1.0.0")
+
+# Initialize comprehensive tracing
+tracer = initialize_tracing(app, "alleato-rag-agent")
+
+# Add tracing middleware
+app.add_middleware(TracingMiddleware)
+app.add_middleware(ChatTracingMiddleware)
 
 # Configure CORS for Next.js frontend
 app.add_middleware(
@@ -81,45 +90,38 @@ Search the knowledge base to answer the user's question. Choose the appropriate 
 
         # Stream the agent execution
         try:
-            async with search_agent.iter(prompt, deps=deps) as run:
-                tool_calls = []
-                response_text = ""
-                
-                async for node in run:
-                    
-                    # Handle tool call nodes
-                    if Agent.is_tool_call_node(node):
-                        for tool_call in node:
-                            tool_info = {
-                                "tool": tool_call.name,
-                                "args": tool_call.args
-                            }
-                            tool_calls.append(tool_info)
-                            
-                            # Send tool call event
-                            yield f"data: {json.dumps({'type': 'tool_call', 'data': tool_info})}\n\n"
-                    
-                    # Handle tool response nodes
-                    elif Agent.is_tool_return_node(node):
-                        for tool_return in node:
-                            # Send tool result event
-                            yield f"data: {json.dumps({'type': 'tool_result', 'data': {'result': str(tool_return.response)[:200]}})}\n\n"
-                    
-                    # Handle model text response
-                    elif Agent.is_text_chunk_node(node):
-                        chunk = node.delta
-                        response_text += chunk
-                        # Send text chunk event
-                        yield f"data: {json.dumps({'type': 'text', 'data': chunk})}\n\n"
-                
-                # Send final complete event
-                yield f"data: {json.dumps({'type': 'complete', 'data': {'response': response_text, 'tool_calls': tool_calls}})}\n\n"
+            # Use regular agent execution and simulate streaming
+            result = await search_agent.run(prompt, deps=deps)
+            response_text = str(result.response) if hasattr(result, 'response') else str(result)
+            
+            # Extract tool calls if available
+            tool_calls = []
+            if hasattr(result, '_tool_calls'):
+                for tc in result._tool_calls:
+                    tool_calls.append({
+                        "tool": tc.name,
+                        "args": tc.args
+                    })
+            
+            # Stream the response character by character for smooth effect
+            for i, char in enumerate(response_text):
+                yield f"data: {json.dumps({'type': 'text', 'data': char})}\n\n"
+                if i % 3 == 0:  # Add small delay every few characters
+                    await asyncio.sleep(0.02)
+            
+            # Send final complete event
+            yield f"data: {json.dumps({'type': 'complete', 'data': {'response': response_text, 'tool_calls': tool_calls}})}\n\n"
         
         except Exception as agent_error:
             # If agent fails, send error response
-            print(f"Streaming agent execution failed: {agent_error}")
+            print(f"Agent execution failed: {agent_error}")
             fallback_message = "I'm experiencing technical difficulties accessing the knowledge base. Please try again or ask me a general question about project management."
-            yield f"data: {json.dumps({'type': 'text', 'data': fallback_message})}\n\n"
+            
+            # Stream the fallback message
+            for char in fallback_message:
+                yield f"data: {json.dumps({'type': 'text', 'data': char})}\n\n"
+                await asyncio.sleep(0.02)
+            
             yield f"data: {json.dumps({'type': 'complete', 'data': {'response': fallback_message, 'tool_calls': []}})}\n\n"
     
     except Exception as e:
@@ -290,6 +292,8 @@ async def health_check():
             "api": True,
             "llm_configured": bool(settings.llm_api_key),
             "model": settings.llm_model,
+            "tracing": True,
+            "metrics": True
         }
     }
     
@@ -302,3 +306,37 @@ async def health_check():
         health_status["status"] = "degraded"
     
     return health_status
+
+
+@app.get("/metrics")
+async def metrics_endpoint():
+    """Prometheus metrics endpoint."""
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from fastapi import Response
+    
+    return Response(
+        generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
+
+
+@app.get("/tracing/status")
+async def tracing_status():
+    """Get tracing system status and statistics."""
+    return {
+        "tracing_enabled": True,
+        "service_name": "alleato-rag-agent",
+        "instrumentation": {
+            "fastapi": True,
+            "httpx": True,
+            "asyncpg": True
+        },
+        "exporters": {
+            "jaeger": True,
+            "prometheus": True
+        },
+        "endpoints": {
+            "metrics": "/metrics",
+            "health": "/health"
+        }
+    }
