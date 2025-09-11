@@ -61,60 +61,67 @@ async def stream_response(
 ) -> AsyncGenerator[str, None]:
     """Stream agent responses as Server-Sent Events."""
     
-    # Create and initialize dependencies
-    deps = AgentDeps()
-    await deps.initialize()
-    
-    # Build context from conversation history
-    context = "\n".join([
-        f"{msg.role}: {msg.content}" 
-        for msg in conversation_history[-6:]
-    ]) if conversation_history else ""
-    
-    prompt = f"""Previous conversation:
+    try:
+        # Create and initialize dependencies
+        deps = AgentDeps()
+        await deps.initialize()
+        
+        # Build context from conversation history
+        context = "\n".join([
+            f"{msg.role}: {msg.content}" 
+            for msg in conversation_history[-6:]
+        ]) if conversation_history else ""
+        
+        prompt = f"""Previous conversation:
 {context}
 
 User: {message}
 
 Search the knowledge base to answer the user's question. Choose the appropriate search strategy (semantic_search or hybrid_search) based on the query type. Provide a comprehensive summary of your findings."""
 
-    try:
         # Stream the agent execution
-        async with search_agent.iter(prompt, deps=deps) as run:
-            
-            tool_calls = []
-            response_text = ""
-            
-            async for node in run:
+        try:
+            async with search_agent.iter(prompt, deps=deps) as run:
+                tool_calls = []
+                response_text = ""
                 
-                # Handle tool call nodes
-                if Agent.is_tool_call_node(node):
-                    for tool_call in node:
-                        tool_info = {
-                            "tool": tool_call.name,
-                            "args": tool_call.args
-                        }
-                        tool_calls.append(tool_info)
-                        
-                        # Send tool call event
-                        yield f"data: {json.dumps({'type': 'tool_call', 'data': tool_info})}\n\n"
+                async for node in run:
+                    
+                    # Handle tool call nodes
+                    if Agent.is_tool_call_node(node):
+                        for tool_call in node:
+                            tool_info = {
+                                "tool": tool_call.name,
+                                "args": tool_call.args
+                            }
+                            tool_calls.append(tool_info)
+                            
+                            # Send tool call event
+                            yield f"data: {json.dumps({'type': 'tool_call', 'data': tool_info})}\n\n"
+                    
+                    # Handle tool response nodes
+                    elif Agent.is_tool_return_node(node):
+                        for tool_return in node:
+                            # Send tool result event
+                            yield f"data: {json.dumps({'type': 'tool_result', 'data': {'result': str(tool_return.response)[:200]}})}\n\n"
+                    
+                    # Handle model text response
+                    elif Agent.is_text_chunk_node(node):
+                        chunk = node.delta
+                        response_text += chunk
+                        # Send text chunk event
+                        yield f"data: {json.dumps({'type': 'text', 'data': chunk})}\n\n"
                 
-                # Handle tool response nodes
-                elif Agent.is_tool_return_node(node):
-                    for tool_return in node:
-                        # Send tool result event
-                        yield f"data: {json.dumps({'type': 'tool_result', 'data': {'result': str(tool_return.response)[:200]}})}\n\n"
-                
-                # Handle model text response
-                elif Agent.is_text_chunk_node(node):
-                    chunk = node.delta
-                    response_text += chunk
-                    # Send text chunk event
-                    yield f"data: {json.dumps({'type': 'text', 'data': chunk})}\n\n"
-            
-            # Send final complete event
-            yield f"data: {json.dumps({'type': 'complete', 'data': {'response': response_text, 'tool_calls': tool_calls}})}\n\n"
-            
+                # Send final complete event
+                yield f"data: {json.dumps({'type': 'complete', 'data': {'response': response_text, 'tool_calls': tool_calls}})}\n\n"
+        
+        except Exception as agent_error:
+            # If agent fails, send error response
+            print(f"Streaming agent execution failed: {agent_error}")
+            fallback_message = "I'm experiencing technical difficulties accessing the knowledge base. Please try again or ask me a general question about project management."
+            yield f"data: {json.dumps({'type': 'text', 'data': fallback_message})}\n\n"
+            yield f"data: {json.dumps({'type': 'complete', 'data': {'response': fallback_message, 'tool_calls': []}})}\n\n"
+    
     except Exception as e:
         yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
     finally:
@@ -132,29 +139,38 @@ async def root():
 async def chat(request: ChatRequest):
     """Non-streaming chat endpoint."""
     
-    # Generate session ID if not provided
-    session_id = request.session_id or str(uuid.uuid4())
-    
-    # Create and initialize dependencies
-    deps = AgentDeps()
-    await deps.initialize()
-    
-    # Build context
-    context = "\n".join([
-        f"{msg.role}: {msg.content}" 
-        for msg in request.conversation_history[-6:]
-    ]) if request.conversation_history else ""
-    
-    prompt = f"""Previous conversation:
+    try:
+        # Generate session ID if not provided
+        session_id = request.session_id or str(uuid.uuid4())
+        
+        # Create and initialize dependencies
+        deps = AgentDeps()
+        await deps.initialize()
+        
+        # Build context
+        context = "\n".join([
+            f"{msg.role}: {msg.content}" 
+            for msg in request.conversation_history[-6:]
+        ]) if request.conversation_history else ""
+        
+        prompt = f"""Previous conversation:
 {context}
 
 User: {request.message}
 
 Search the knowledge base to answer the user's question. Choose the appropriate search strategy (semantic_search or hybrid_search) based on the query type. Provide a comprehensive summary of your findings."""
-    
-    try:
-        # Run agent
-        result = await search_agent.run(prompt, deps=deps)
+        
+        # Run agent with error handling
+        try:
+            result = await search_agent.run(prompt, deps=deps)
+        except Exception as agent_error:
+            # If agent fails, provide a fallback response
+            print(f"Agent execution failed: {agent_error}")
+            return ChatResponse(
+                response=f"I apologize, but I'm experiencing technical difficulties accessing the knowledge base. However, I can still help with general questions about project management and business strategy. Please let me know how I can assist you with your specific needs.",
+                session_id=session_id,
+                tool_calls=None
+            )
         
         # Extract tool calls from result if available
         tool_calls = []
@@ -172,10 +188,12 @@ Search the knowledge base to answer the user's question. Choose the appropriate 
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        # Clean up resources
-        pass
+        print(f"Chat endpoint error: {e}")
+        return ChatResponse(
+            response="I'm experiencing technical difficulties. Please try again in a few moments.",
+            session_id=request.session_id or str(uuid.uuid4()),
+            tool_calls=None
+        )
 
 
 @app.post("/chat/stream")
