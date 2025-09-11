@@ -17,10 +17,8 @@ from shared.utils.db_utils import db_pool
 from shared.ai.prompts import ENHANCED_PM_SYSTEM_PROMPT, get_dynamic_prompt
 from tools.search_tools import semantic_search, hybrid_search, get_recent_documents
 
-# Create dependencies object
-class AgentDeps:
-    def __init__(self):
-        self.db_pool = db_pool
+# Import dependencies
+from shared.ai.agent_deps import AgentDeps
 
 # Initialize the elite PM agent with enhanced system prompt  
 search_agent = Agent(

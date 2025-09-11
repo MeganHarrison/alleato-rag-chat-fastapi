@@ -5,7 +5,7 @@ from pydantic_ai import RunContext
 from pydantic import BaseModel, Field
 import asyncpg
 import json
-from shared.ai.dependencies import AgentDependencies
+from shared.ai.agent_deps import AgentDeps
 
 
 class SearchResult(BaseModel):
@@ -20,7 +20,7 @@ class SearchResult(BaseModel):
 
 
 async def semantic_search(
-    ctx: RunContext[AgentDependencies],
+    ctx: RunContext[AgentDeps],
     query: str,
     match_count: Optional[int] = None
 ) -> List[SearchResult]:
@@ -80,7 +80,7 @@ async def semantic_search(
 
 
 async def hybrid_search(
-    ctx: RunContext[AgentDependencies],
+    ctx: RunContext[AgentDeps],
     query: str,
     match_count: Optional[int] = None,
     text_weight: Optional[float] = None
@@ -150,7 +150,7 @@ async def hybrid_search(
 
 
 async def get_recent_documents(
-    ctx: RunContext[AgentDependencies],
+    ctx: RunContext[AgentDeps],
     limit: int = 5,
     document_type: Optional[str] = None
 ) -> List[Dict[str, Any]]:

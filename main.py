@@ -7,7 +7,8 @@ import asyncio
 import json
 import uuid
 
-from rag_agent import search_agent, AgentDeps
+from rag_agent import search_agent
+from shared.ai.agent_deps import AgentDeps
 from shared.utils.db_utils import initialize_database
 from shared.utils.config import load_settings
 from pydantic_ai import Agent
@@ -62,6 +63,7 @@ async def stream_response(
     
     # Create and initialize dependencies
     deps = AgentDeps()
+    await deps.initialize()
     
     # Build context from conversation history
     context = "\n".join([
@@ -135,6 +137,7 @@ async def chat(request: ChatRequest):
     
     # Create and initialize dependencies
     deps = AgentDeps()
+    await deps.initialize()
     
     # Build context
     context = "\n".join([
