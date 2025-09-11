@@ -38,10 +38,24 @@ async def semantic_search(
     try:
         deps = ctx.deps
         
-        # Check if database is available
+        # Check if database is available, use fallback if not
         if not deps.db_pool or not hasattr(deps.db_pool, 'acquire'):
-            print("Database not available for semantic search")
-            return []
+            print("Database not available, using fallback API for semantic search")
+            from tools.api_fallback_search import fallback_semantic_search
+            results = await fallback_semantic_search(ctx, query, match_count)
+            # Convert to SearchResult objects if we got results
+            return [
+                SearchResult(
+                    chunk_id=f"fallback_{i}",
+                    document_id=f"fallback_doc_{i}",
+                    content=result['content'],
+                    similarity=result['similarity'],
+                    metadata=result['metadata'],
+                    document_title=result['document_title'],
+                    document_source=result['document_source']
+                )
+                for i, result in enumerate(results)
+            ]
         
         # Use default if not specified
         if match_count is None:
@@ -178,10 +192,11 @@ async def get_recent_documents(
     try:
         deps = ctx.deps
         
-        # Check if database is available
+        # Check if database is available, use fallback if not
         if not deps.db_pool or not hasattr(deps.db_pool, 'acquire'):
-            print("Database not available for recent documents")
-            return []
+            print("Database not available, using fallback API for recent documents")
+            from tools.api_fallback_search import fallback_recent_documents
+            return await fallback_recent_documents(ctx, limit, document_type)
         
         # Build query with optional type filter
         base_query = """

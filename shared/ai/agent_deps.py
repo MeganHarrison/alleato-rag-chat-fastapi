@@ -22,8 +22,13 @@ class AgentDeps:
             self.settings = load_settings()
         
         # Initialize database pool with improved connection
-        await self.db_pool.initialize()
-        print("Database connection successful in agent deps")
+        try:
+            await self.db_pool.initialize()
+            print("Database connection successful in agent deps")
+        except Exception as db_error:
+            print(f"Database initialization failed, will use API fallbacks: {db_error}")
+            # Set db_pool to None to trigger fallback mode
+            self.db_pool = None
         
         if not self.openai_client:
             self.openai_client = openai.AsyncOpenAI(
