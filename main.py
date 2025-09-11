@@ -244,6 +244,38 @@ async def test_database_connection():
             "database_connection": False
         }
 
+@app.get("/test-search")
+async def test_search_endpoint():
+    """Test search functionality directly."""
+    try:
+        from shared.ai.agent_deps import AgentDeps
+        from tools.search_tools import get_recent_documents
+        from types import SimpleNamespace
+        
+        deps = AgentDeps()
+        await deps.initialize()
+        
+        ctx = SimpleNamespace()
+        ctx.deps = deps
+        
+        # Test get_recent_documents
+        docs = await get_recent_documents(ctx, limit=3)
+        
+        return {
+            "status": "success",
+            "database_connected": deps.db_pool is not None and hasattr(deps.db_pool, 'pool'),
+            "pool_active": deps.db_pool.pool is not None if deps.db_pool else False,
+            "documents_found": len(docs),
+            "sample_titles": [doc.get('title', 'No title') for doc in docs[:2]] if docs else []
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
 @app.get("/health")
 async def health_check():
     """Detailed health check with dependency status."""
