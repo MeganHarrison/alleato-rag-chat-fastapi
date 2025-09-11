@@ -139,46 +139,59 @@ class AlleartoTracer:
             self.vector_similarity_scores = NoOpMetric()
             return
         
-        # Request metrics
-        self.request_count = Counter(
-            'alleato_requests_total',
-            'Total number of requests',
-            ['method', 'endpoint', 'status']
-        )
-        
-        self.request_duration = Histogram(
-            'alleato_request_duration_seconds',
-            'Request duration in seconds',
-            ['method', 'endpoint']
-        )
-        
-        # AI Agent metrics
-        self.agent_execution_duration = Histogram(
-            'alleato_agent_execution_seconds',
-            'AI agent execution time',
-            ['agent_type', 'success']
-        )
-        
-        self.search_operations = Counter(
-            'alleato_search_operations_total',
-            'Search operations performed',
-            ['search_type', 'success']
-        )
-        
-        # Database metrics
-        self.active_connections = Gauge(
-            'alleato_db_connections_active',
-            'Active database connections'
-        )
-        
-        # Vector search metrics
-        self.vector_similarity_scores = Histogram(
-            'alleato_vector_similarity_scores',
-            'Vector similarity scores distribution',
-            buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-        )
-        
-        print(f"✅ Prometheus metrics enabled on :9090/metrics")
+        try:
+            # Request metrics
+            self.request_count = Counter(
+                'alleato_requests_total',
+                'Total number of requests',
+                ['method', 'endpoint', 'status']
+            )
+            
+            self.request_duration = Histogram(
+                'alleato_request_duration_seconds',
+                'Request duration in seconds',
+                ['method', 'endpoint']
+            )
+            
+            # AI Agent metrics
+            self.agent_execution_duration = Histogram(
+                'alleato_agent_execution_seconds',
+                'AI agent execution time',
+                ['agent_type', 'success']
+            )
+            
+            self.search_operations = Counter(
+                'alleato_search_operations_total',
+                'Search operations performed',
+                ['search_type', 'success']
+            )
+            
+            # Database metrics
+            self.active_connections = Gauge(
+                'alleato_db_connections_active',
+                'Active database connections'
+            )
+            
+            # Vector search metrics
+            self.vector_similarity_scores = Histogram(
+                'alleato_vector_similarity_scores',
+                'Vector similarity scores distribution',
+                buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+            )
+            
+            print(f"✅ Prometheus metrics enabled on :9090/metrics")
+        except ValueError as e:
+            if "Duplicated timeseries" in str(e):
+                print("⚠️  Metrics already registered, using existing instances")
+                # Use NoOp metrics to avoid double registration issues in production
+                self.request_count = NoOpMetric()
+                self.request_duration = NoOpMetric()
+                self.agent_execution_duration = NoOpMetric()
+                self.search_operations = NoOpMetric()
+                self.active_connections = NoOpMetric()
+                self.vector_similarity_scores = NoOpMetric()
+            else:
+                raise
     
     def _setup_logging(self):
         """Setup structured logging with rich formatting."""
@@ -369,9 +382,18 @@ class AlleartoTracer:
     
     def start_metrics_server(self, port: int = 9090):
         """Start Prometheus metrics server."""
+        if not METRICS_AVAILABLE:
+            print("⚠️  Metrics server disabled - Prometheus client not available")
+            return
+            
         try:
             start_http_server(port)
             print(f"✅ Metrics server started on port {port}")
+        except OSError as e:
+            if "Address already in use" in str(e):
+                print(f"⚠️  Metrics server already running on port {port}")
+            else:
+                print(f"⚠️  Could not start metrics server: {e}")
         except Exception as e:
             print(f"⚠️  Could not start metrics server: {e}")
 
@@ -389,7 +411,8 @@ def get_tracer() -> AlleartoTracer:
 def initialize_tracing(app, service_name: str = "alleato-rag-agent"):
     """Initialize tracing for the FastAPI application."""
     global tracer
-    tracer = AlleartoTracer(service_name)
-    tracer.instrument_fastapi(app)
-    tracer.start_metrics_server()
+    if tracer is None:
+        tracer = AlleartoTracer(service_name)
+        tracer.instrument_fastapi(app)
+        tracer.start_metrics_server()
     return tracer
