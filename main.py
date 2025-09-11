@@ -199,6 +199,33 @@ async def chat_stream(request: ChatRequest):
     )
 
 
+@app.get("/test-db")
+async def test_database_connection():
+    """Test database connection and dependencies."""
+    try:
+        from shared.ai.agent_deps import AgentDeps
+        
+        deps = AgentDeps()
+        await deps.initialize()
+        
+        # Test basic database connectivity
+        async with deps.db_pool.acquire() as conn:
+            result = await conn.fetchval("SELECT 1")
+        
+        return {
+            "status": "success",
+            "database_connection": True,
+            "test_query_result": result,
+            "db_pool_initialized": deps.db_pool.pool is not None
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error", 
+            "error": str(e),
+            "database_connection": False
+        }
+
 @app.get("/health")
 async def health_check():
     """Detailed health check with dependency status."""
