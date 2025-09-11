@@ -42,10 +42,14 @@ class DatabasePool:
         if not self.pool:
             self.pool = await asyncpg.create_pool(
                 self.database_url,
-                min_size=5,
-                max_size=20,
+                min_size=2,
+                max_size=10,
                 max_inactive_connection_lifetime=300,
-                command_timeout=60
+                command_timeout=60,
+                server_settings={
+                    'application_name': 'railway_rag_app',
+                    'search_path': 'public'
+                }
             )
             logger.info("Database connection pool initialized")
     
