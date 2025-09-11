@@ -11,18 +11,27 @@ from rag_agent import search_agent
 from shared.ai.agent_deps import AgentDeps
 from shared.utils.db_utils import initialize_database
 from shared.utils.config import load_settings
-from shared.monitoring.tracing import initialize_tracing, get_tracer
-from shared.monitoring.middleware import TracingMiddleware, ChatTracingMiddleware
+try:
+    from shared.monitoring.tracing import initialize_tracing, get_tracer
+    from shared.monitoring.middleware import TracingMiddleware, ChatTracingMiddleware
+    ADVANCED_TRACING = True
+except ImportError:
+    from shared.monitoring.simple_tracing import get_simple_tracer
+    ADVANCED_TRACING = False
 from pydantic_ai import Agent
 
 app = FastAPI(title="RAG Agent API", version="1.0.0")
 
 # Initialize comprehensive tracing
-tracer = initialize_tracing(app, "alleato-rag-agent")
-
-# Add tracing middleware
-app.add_middleware(TracingMiddleware)
-app.add_middleware(ChatTracingMiddleware)
+if ADVANCED_TRACING:
+    tracer = initialize_tracing(app, "alleato-rag-agent")
+    # Add tracing middleware
+    app.add_middleware(TracingMiddleware)
+    app.add_middleware(ChatTracingMiddleware)
+else:
+    tracer = get_simple_tracer()
+    tracer.instrument_fastapi(app)
+    print("⚠️  Using simple tracing mode - install tracing dependencies for full observability")
 
 # Configure CORS for Next.js frontend
 app.add_middleware(

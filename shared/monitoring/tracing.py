@@ -17,18 +17,67 @@ from functools import wraps
 from contextlib import contextmanager
 import asyncio
 
-# OpenTelemetry imports
-from opentelemetry import trace, metrics
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
+# Optional OpenTelemetry imports - graceful degradation if not available
+try:
+    from opentelemetry import trace, metrics
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+    from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
+    TRACING_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️  OpenTelemetry not available: {e}")
+    TRACING_AVAILABLE = False
 
-# Prometheus imports
-from prometheus_client import Counter, Histogram, Gauge, start_http_server
+# Optional Prometheus imports
+try:
+    from prometheus_client import Counter, Histogram, Gauge, start_http_server
+    METRICS_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️  Prometheus client not available: {e}")
+    METRICS_AVAILABLE = False
+
+
+class NoOpTracer:
+    """No-operation tracer for when OpenTelemetry is not available."""
+    
+    def start_as_current_span(self, name, **kwargs):
+        return NoOpSpan()
+    
+    def get_tracer(self, name):
+        return self
+
+
+class NoOpSpan:
+    """No-operation span for when OpenTelemetry is not available."""
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, *args):
+        pass
+    
+    def set_attribute(self, key, value):
+        pass
+
+
+class NoOpMetric:
+    """No-operation metric for when Prometheus is not available."""
+    
+    def labels(self, **kwargs):
+        return self
+    
+    def inc(self, value=1):
+        pass
+    
+    def observe(self, value):
+        pass
+    
+    def set(self, value):
+        pass
 
 
 class AlleartoTracer:
@@ -53,6 +102,11 @@ class AlleartoTracer:
     
     def _setup_tracing(self):
         """Setup OpenTelemetry distributed tracing."""
+        if not TRACING_AVAILABLE:
+            print("⚠️  Tracing disabled - OpenTelemetry not available")
+            self.tracer = NoOpTracer()
+            return
+        
         # Configure tracer provider
         trace.set_tracer_provider(TracerProvider())
         
@@ -75,6 +129,16 @@ class AlleartoTracer:
     
     def _setup_metrics(self):
         """Setup Prometheus metrics."""
+        if not METRICS_AVAILABLE:
+            print("⚠️  Metrics disabled - Prometheus client not available")
+            self.request_count = NoOpMetric()
+            self.request_duration = NoOpMetric()
+            self.agent_execution_duration = NoOpMetric()
+            self.search_operations = NoOpMetric()
+            self.active_connections = NoOpMetric()
+            self.vector_similarity_scores = NoOpMetric()
+            return
+        
         # Request metrics
         self.request_count = Counter(
             'alleato_requests_total',
@@ -140,10 +204,17 @@ class AlleartoTracer:
     
     def instrument_fastapi(self, app):
         """Instrument FastAPI app with tracing."""
-        FastAPIInstrumentor.instrument_app(app, tracer_provider=trace.get_tracer_provider())
-        HTTPXClientInstrumentor().instrument()
-        AsyncPGInstrumentor().instrument()
-        print(f"✅ FastAPI instrumentation enabled")
+        if not TRACING_AVAILABLE:
+            print("⚠️  FastAPI instrumentation disabled - OpenTelemetry not available")
+            return
+            
+        try:
+            FastAPIInstrumentor.instrument_app(app, tracer_provider=trace.get_tracer_provider())
+            HTTPXClientInstrumentor().instrument()
+            AsyncPGInstrumentor().instrument()
+            print(f"✅ FastAPI instrumentation enabled")
+        except Exception as e:
+            print(f"⚠️  FastAPI instrumentation failed: {e}")
     
     @contextmanager
     def trace_operation(self, operation_name: str, **attributes):

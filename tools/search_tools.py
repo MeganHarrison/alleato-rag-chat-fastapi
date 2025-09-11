@@ -6,7 +6,12 @@ from pydantic import BaseModel, Field
 import asyncpg
 import json
 from shared.ai.agent_deps import AgentDeps
-from shared.monitoring.tracing import get_tracer
+try:
+    from shared.monitoring.tracing import get_tracer
+    ADVANCED_TRACING = True
+except ImportError:
+    from shared.monitoring.simple_tracing import get_simple_tracer as get_tracer
+    ADVANCED_TRACING = False
 
 
 class SearchResult(BaseModel):
