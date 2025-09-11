@@ -75,8 +75,8 @@ async def semantic_search(
             for row in results
         ]
     except Exception as e:
-        print(e)
-        return f"Failed to perform a semantic search: {e}"
+        print(f"Semantic search error: {e}")
+        raise Exception(f"Failed to perform a semantic search: {e}")
 
 
 async def hybrid_search(
@@ -145,8 +145,8 @@ async def hybrid_search(
             for row in results
         ]
     except Exception as e:
-        print(e)
-        return f"Failed to perform hybrid search: {e}"
+        print(f"Hybrid search error: {e}")
+        raise Exception(f"Failed to perform hybrid search: {e}")
 
 
 async def get_recent_documents(
@@ -205,4 +205,4 @@ async def get_recent_documents(
         ]
     except Exception as e:
         print(f"Error getting recent documents: {e}")
-        return []
+        raise Exception(f"Failed to get recent documents: {e}")

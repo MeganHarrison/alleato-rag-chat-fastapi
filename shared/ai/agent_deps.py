@@ -21,6 +21,9 @@ class AgentDeps:
         if not self.settings:
             self.settings = load_settings()
         
+        # Initialize database pool
+        await self.db_pool.initialize()
+        
         if not self.openai_client:
             self.openai_client = openai.AsyncOpenAI(
                 api_key=self.settings.llm_api_key,
