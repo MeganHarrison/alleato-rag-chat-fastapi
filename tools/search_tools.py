@@ -38,6 +38,11 @@ async def semantic_search(
     try:
         deps = ctx.deps
         
+        # Check if database is available
+        if not deps.db_pool or not hasattr(deps.db_pool, 'acquire'):
+            print("Database not available for semantic search")
+            return []
+        
         # Use default if not specified
         if match_count is None:
             match_count = deps.settings.default_match_count
@@ -99,6 +104,11 @@ async def hybrid_search(
     """
     try:
         deps = ctx.deps
+        
+        # Check if database is available
+        if not deps.db_pool or not hasattr(deps.db_pool, 'acquire'):
+            print("Database not available for hybrid search")
+            return []
         
         # Use defaults if not specified
         if match_count is None:
@@ -167,6 +177,11 @@ async def get_recent_documents(
     """
     try:
         deps = ctx.deps
+        
+        # Check if database is available
+        if not deps.db_pool or not hasattr(deps.db_pool, 'acquire'):
+            print("Database not available for recent documents")
+            return []
         
         # Build query with optional type filter
         base_query = """

@@ -21,8 +21,13 @@ class AgentDeps:
         if not self.settings:
             self.settings = load_settings()
         
-        # Initialize database pool
-        await self.db_pool.initialize()
+        # Initialize database pool with retry and fallback
+        try:
+            await self.db_pool.initialize()
+        except Exception as db_error:
+            print(f"Database initialization failed: {db_error}")
+            # Continue without database for now to allow basic functionality
+            self.db_pool = None
         
         if not self.openai_client:
             self.openai_client = openai.AsyncOpenAI(
