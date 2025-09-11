@@ -7,10 +7,9 @@ import asyncio
 import json
 import uuid
 
-from rag_agent import search_agent
+from rag_agent import search_agent, AgentDeps
 from shared.utils.db_utils import initialize_database
 from shared.utils.config import load_settings
-from shared.ai.dependencies import AgentDependencies
 from pydantic_ai import Agent
 
 app = FastAPI(title="RAG Agent API", version="1.0.0")
@@ -62,8 +61,7 @@ async def stream_response(
     """Stream agent responses as Server-Sent Events."""
     
     # Create and initialize dependencies
-    deps = AgentDependencies(session_id=session_id)
-    await deps.initialize()
+    deps = AgentDeps()
     
     # Build context from conversation history
     context = "\n".join([
@@ -119,10 +117,7 @@ Search the knowledge base to answer the user's question. Choose the appropriate 
         yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
     finally:
         # Clean up resources
-        try:
-            await deps.cleanup()
-        except:
-            pass
+        pass
 
 
 @app.get("/")
@@ -139,8 +134,7 @@ async def chat(request: ChatRequest):
     session_id = request.session_id or str(uuid.uuid4())
     
     # Create and initialize dependencies
-    deps = AgentDependencies(session_id=session_id)
-    await deps.initialize()
+    deps = AgentDeps()
     
     # Build context
     context = "\n".join([
@@ -178,10 +172,7 @@ Search the knowledge base to answer the user's question. Choose the appropriate 
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         # Clean up resources
-        try:
-            await deps.cleanup()
-        except:
-            pass
+        pass
 
 
 @app.post("/chat/stream")
