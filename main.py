@@ -89,18 +89,26 @@ async def stream_response(
             for msg in conversation_history[-6:]
         ]) if conversation_history else ""
         
-        prompt = f"""Previous conversation:
+        # Build the user message with conversation context
+        if context:
+            prompt = f"""Previous conversation:
 {context}
 
-User: {message}
-
-Search the knowledge base to answer the user's question. Choose the appropriate search strategy (semantic_search or hybrid_search) based on the query type. Provide a comprehensive summary of your findings."""
+User: {message}"""
+        else:
+            prompt = message
 
         # Stream the agent execution
         try:
             # Use regular agent execution and simulate streaming
             result = await search_agent.run(prompt, deps=deps)
-            response_text = str(result.response) if hasattr(result, 'response') else str(result)
+            # Extract the actual response content from the result
+            if hasattr(result, 'data'):
+                response_text = str(result.data)
+            elif hasattr(result, 'output'):
+                response_text = str(result.output)
+            else:
+                response_text = str(result)
             
             # Extract tool calls if available
             tool_calls = []
@@ -163,16 +171,25 @@ async def chat(request: ChatRequest):
             for msg in request.conversation_history[-6:]
         ]) if request.conversation_history else ""
         
-        prompt = f"""Previous conversation:
+        # Build the user message with conversation context  
+        if context:
+            prompt = f"""Previous conversation:
 {context}
 
-User: {request.message}
-
-Search the knowledge base to answer the user's question. Choose the appropriate search strategy (semantic_search or hybrid_search) based on the query type. Provide a comprehensive summary of your findings."""
+User: {request.message}"""
+        else:
+            prompt = request.message
         
         # Run agent with error handling
         try:
             result = await search_agent.run(prompt, deps=deps)
+            # Extract the actual response content from the result  
+            if hasattr(result, 'data'):
+                response_text = str(result.data)
+            elif hasattr(result, 'output'):
+                response_text = str(result.output)
+            else:
+                response_text = str(result)
         except Exception as agent_error:
             # If agent fails, provide a fallback response
             print(f"Agent execution failed: {agent_error}")
@@ -192,7 +209,7 @@ Search the knowledge base to answer the user's question. Choose the appropriate 
                 })
         
         return ChatResponse(
-            response=str(result.response) if hasattr(result, 'response') else str(result),
+            response=response_text,
             session_id=session_id,
             tool_calls=tool_calls if tool_calls else None
         )
