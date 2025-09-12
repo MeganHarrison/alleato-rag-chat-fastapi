@@ -5,6 +5,7 @@ from pydantic_ai import RunContext
 from pydantic import BaseModel, Field
 import httpx
 import asyncio
+import os
 from shared.ai.agent_deps import AgentDeps
 
 try:
@@ -48,67 +49,75 @@ async def web_search(
         List of web search results with titles, URLs, and snippets
     """
     try:
-        # Use DuckDuckGo Instant Answer API (no API key required)
+        # Get Brave Search API key
+        brave_api_key = os.getenv("BRAVE_SEARCH_API_KEY")
+        if not brave_api_key:
+            return [WebSearchResult(
+                title="Search Configuration Error",
+                url="",
+                snippet="Brave Search API key not configured. Unable to perform web search.",
+                source="system"
+            )]
+        
         async with httpx.AsyncClient() as client:
             
-            # DuckDuckGo search
-            search_url = "https://api.duckduckgo.com/"
+            # Brave Search API
+            search_url = "https://api.search.brave.com/res/v1/web/search"
+            headers = {
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip",
+                "X-Subscription-Token": brave_api_key
+            }
             params = {
                 "q": query,
-                "format": "json",
-                "no_redirect": "1",
-                "no_html": "1",
-                "skip_disambig": "1"
+                "count": max_results,
+                "text_decorations": "0",
+                "search_lang": "en",
+                "country": "US",
+                "safesearch": "moderate",
+                "freshness": "pw"  # Past week for fresh results
             }
             
-            response = await client.get(search_url, params=params, timeout=10)
+            response = await client.get(search_url, headers=headers, params=params, timeout=15)
             
             if response.status_code != 200:
                 return [WebSearchResult(
                     title="Search Error",
                     url="",
-                    snippet=f"Web search failed with status {response.status_code}",
+                    snippet=f"Brave Search API failed with status {response.status_code}. {response.text[:200]}",
                     source="system"
                 )]
             
             data = response.json()
             results = []
             
-            # Extract instant answer if available
-            if data.get("Abstract"):
-                results.append(WebSearchResult(
-                    title=data.get("AbstractText", "Instant Answer")[:100],
-                    url=data.get("AbstractURL", ""),
-                    snippet=data.get("Abstract", "")[:300],
-                    source=data.get("AbstractSource", "DuckDuckGo")
-                ))
+            # Extract web results
+            web_results = data.get("web", {}).get("results", [])
             
-            # Extract related topics
-            for topic in data.get("RelatedTopics", [])[:max_results-1]:
-                if isinstance(topic, dict) and topic.get("Text"):
-                    results.append(WebSearchResult(
-                        title=topic.get("Text", "")[:100],
-                        url=topic.get("FirstURL", ""),
-                        snippet=topic.get("Text", "")[:300],
-                        source="DuckDuckGo"
-                    ))
+            for result in web_results[:max_results]:
+                results.append(WebSearchResult(
+                    title=result.get("title", "No title")[:150],
+                    url=result.get("url", ""),
+                    snippet=result.get("description", "No description available")[:400],
+                    source="Brave Search"
+                ))
             
             # If no results, provide helpful fallback
             if not results:
                 results.append(WebSearchResult(
                     title="No current web results",
                     url="",
-                    snippet=f"No immediate web results for '{query}'. Consider checking specific agency websites or local government portals for permit/inspection delays.",
+                    snippet=f"No web results found for '{query}'. The information may be available by checking specific agency websites or local government portals.",
                     source="system"
                 ))
             
-            return results[:max_results]
+            return results
             
     except asyncio.TimeoutError:
         return [WebSearchResult(
             title="Search Timeout",
             url="",
-            snippet="Web search timed out. The information may be available by checking specific government or agency websites directly.",
+            snippet="Web search timed out. This could be due to network issues or high API load.",
             source="system"
         )]
         
