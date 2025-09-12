@@ -17,12 +17,12 @@ from tools.web_search_tools import web_search, search_construction_info
 from tools.financial_analysis_tools import calculate_budget_variance, calculate_timeline_cost_impact, project_final_cost
 
 # Import dependencies
-from shared.ai.agent_deps import AgentDeps
+from shared.ai.dependencies import AgentDependencies
 
 # Initialize the conversational PM agent with veteran personality
 search_agent = Agent(
     get_llm_model(),
-    deps_type=AgentDeps,
+    deps_type=AgentDependencies,
     system_prompt=CONVERSATIONAL_PM_SYSTEM_PROMPT
 )
 

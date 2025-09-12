@@ -6,11 +6,11 @@ import aiohttp
 import os
 from typing import List, Dict, Any, Optional
 from pydantic_ai import RunContext
-from shared.ai.agent_deps import AgentDeps
+from shared.ai.dependencies import AgentDependencies
 
 
 async def fallback_semantic_search(
-    ctx: RunContext[AgentDeps],
+    ctx: RunContext[AgentDependencies],
     query: str,
     match_count: Optional[int] = None
 ) -> List[Dict[str, Any]]:
@@ -53,7 +53,7 @@ async def fallback_semantic_search(
 
 
 async def fallback_recent_documents(
-    ctx: RunContext[AgentDeps],
+    ctx: RunContext[AgentDependencies],
     limit: int = 5,
     document_type: Optional[str] = None
 ) -> List[Dict[str, Any]]:
@@ -68,7 +68,7 @@ async def fallback_recent_documents(
                 f"{pm_rag_url}/documents/recent",
                 params={
                     "limit": limit,
-                    "type": document_type
+                    "type": document_type if document_type is not None else ""
                 },
                 timeout=10
             ) as response:
