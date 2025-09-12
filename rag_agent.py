@@ -13,6 +13,7 @@ from pydantic_ai import Agent
 from shared.ai.providers import get_llm_model
 from shared.ai.prompts import CONVERSATIONAL_PM_SYSTEM_PROMPT
 from tools.search_tools import semantic_search, hybrid_search, get_recent_documents
+from tools.web_search_tools import web_search, search_construction_info
 
 # Import dependencies
 from shared.ai.agent_deps import AgentDeps
@@ -30,3 +31,7 @@ search_agent = Agent(
 search_agent.tool(semantic_search)
 search_agent.tool(hybrid_search)
 search_agent.tool(get_recent_documents)
+
+# Register web search tools for real-time information
+search_agent.tool(web_search)
+search_agent.tool(search_construction_info)
