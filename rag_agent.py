@@ -14,17 +14,17 @@ from types import SimpleNamespace
 
 from shared.ai.providers import get_llm_model
 from shared.utils.db_utils import db_pool
-from shared.ai.prompts import ENHANCED_PM_SYSTEM_PROMPT, get_dynamic_prompt
+from shared.ai.prompts import CONVERSATIONAL_PM_SYSTEM_PROMPT, get_dynamic_prompt
 from tools.search_tools import semantic_search, hybrid_search, get_recent_documents
 
 # Import dependencies
 from shared.ai.agent_deps import AgentDeps
 
-# Initialize the elite PM agent with enhanced system prompt  
+# Initialize the conversational PM agent with veteran personality
 search_agent = Agent(
     get_llm_model(),
     deps_type=AgentDeps,
-    system_prompt=ENHANCED_PM_SYSTEM_PROMPT
+    system_prompt=CONVERSATIONAL_PM_SYSTEM_PROMPT
 )
 
 # Add dynamic context to system prompt

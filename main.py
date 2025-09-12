@@ -45,8 +45,7 @@ app.add_middleware(
         "http://localhost:3005",
         "http://localhost:3006",
         "https://alleato-ai-dashboard.vercel.app",
-        "https://rag-agent-chat.vercel.app",
-        "https://*.vercel.app"
+        "https://rag-agent-chat.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
