@@ -18,7 +18,7 @@ async def fallback_semantic_search(
     Fallback semantic search using external RAG API.
     """
     try:
-        pm_rag_url = os.getenv('RAILWAY_PM_RAG', 'https://rag-agent-api-production.up.railway.app')
+        pm_rag_url = os.getenv('PM_RAG', 'https://alleato-rag-chat-fastapi.onrender.com')
         
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -61,7 +61,7 @@ async def fallback_recent_documents(
     Fallback to get recent documents - uses mock data when external API unavailable.
     """
     try:
-        pm_rag_url = os.getenv('RAILWAY_PM_RAG', 'https://rag-agent-api-production.up.railway.app')
+        pm_rag_url = os.getenv('PM_RAG', 'https://alleato-rag-chat-fastapi.onrender.com')
         
         async with aiohttp.ClientSession() as session:
             async with session.get(

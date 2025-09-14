@@ -11,27 +11,13 @@ from rag_agent import search_agent
 from shared.ai.agent_deps import AgentDeps
 from shared.utils.db_utils import initialize_database
 from shared.utils.config import load_settings
-try:
-    from shared.monitoring.tracing import initialize_tracing, get_tracer
-    from shared.monitoring.middleware import TracingMiddleware, ChatTracingMiddleware
-    ADVANCED_TRACING = True
-except ImportError:
-    from shared.monitoring.simple_tracing import get_simple_tracer
-    ADVANCED_TRACING = False
+ADVANCED_TRACING = False
 from pydantic_ai import Agent
 
 app = FastAPI(title="RAG Agent API", version="1.0.0")
 
-# Initialize comprehensive tracing
-if ADVANCED_TRACING:
-    tracer = initialize_tracing(app, "alleato-rag-agent")
-    # Add tracing middleware
-    app.add_middleware(TracingMiddleware)
-    app.add_middleware(ChatTracingMiddleware)
-else:
-    tracer = get_simple_tracer()
-    tracer.instrument_fastapi(app)
-    print("⚠️  Using simple tracing mode - install tracing dependencies for full observability")
+# Tracing disabled - OpenTelemetry dependencies removed
+print("ℹ️  Tracing disabled for simplified deployment")
 
 # Configure CORS for Next.js frontend
 app.add_middleware(
@@ -317,8 +303,8 @@ async def health_check():
             "api": True,
             "llm_configured": bool(settings.llm_api_key),
             "model": settings.llm_model,
-            "tracing": True,
-            "metrics": True
+            "tracing": False,
+            "metrics": False
         }
     }
     
@@ -335,33 +321,18 @@ async def health_check():
 
 @app.get("/metrics")
 async def metrics_endpoint():
-    """Prometheus metrics endpoint."""
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-    from fastapi import Response
-    
-    return Response(
-        generate_latest(),
-        media_type=CONTENT_TYPE_LATEST
-    )
+    """Metrics endpoint (simplified - no Prometheus)."""
+    return {"status": "metrics disabled", "message": "Prometheus dependencies removed"}
 
 
 @app.get("/tracing/status")
 async def tracing_status():
     """Get tracing system status and statistics."""
     return {
-        "tracing_enabled": True,
+        "tracing_enabled": False,
         "service_name": "alleato-rag-agent",
-        "instrumentation": {
-            "fastapi": True,
-            "httpx": True,
-            "asyncpg": True
-        },
-        "exporters": {
-            "jaeger": True,
-            "prometheus": True
-        },
+        "message": "Tracing dependencies removed for simplified deployment",
         "endpoints": {
-            "metrics": "/metrics",
             "health": "/health"
         }
     }

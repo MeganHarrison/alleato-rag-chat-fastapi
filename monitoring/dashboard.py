@@ -10,16 +10,23 @@ This script provides a live terminal dashboard showing:
 """
 
 import time
-import requests
 import json
 from datetime import datetime
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.layout import Layout
-from rich.live import Live
-from rich.text import Text
 import argparse
+
+try:
+    import requests
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.layout import Layout
+    from rich.live import Live
+    from rich.text import Text
+    MONITORING_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Monitoring dashboard dependencies not available: {e}")
+    print("Install with: pip install requests rich")
+    MONITORING_AVAILABLE = False
 
 
 class RAGMonitoringDashboard:
@@ -254,6 +261,11 @@ class RAGMonitoringDashboard:
 
 def main():
     """Main function to run the monitoring dashboard."""
+    if not MONITORING_AVAILABLE:
+        print("❌ Cannot start monitoring dashboard - missing dependencies")
+        print("Install with: pip install requests rich")
+        return 1
+    
     parser = argparse.ArgumentParser(description="Alleato RAG Agent Monitoring Dashboard")
     parser.add_argument(
         "--api-url",
@@ -271,7 +283,8 @@ def main():
     
     dashboard = RAGMonitoringDashboard(args.api_url)
     dashboard.run_dashboard(args.refresh)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())
