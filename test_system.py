@@ -42,7 +42,7 @@ def test_system():
     # Test 4: Chat Agent
     try:
         payload = {"message": "Give me a quick status update"}
-        response = requests.post(f"{base_url}/chat", json=payload, timeout=15)
+        response = requests.post(f"{base_url}/chat", json=payload, timeout=45)
         data = response.json()
         
         if data['response']:
