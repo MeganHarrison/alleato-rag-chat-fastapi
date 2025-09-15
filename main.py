@@ -394,3 +394,45 @@ async def debug_environment():
         "settings": settings_info,
         "all_env_count": len(os.environ)
     }
+
+
+@app.get("/test-pooler")
+async def test_connection_pooler():
+    """Test database connection using Supabase connection pooler."""
+    import asyncpg
+    import os
+    
+    # Use the connection pooler URL
+    pooler_url = "postgresql://postgres.lgveqfnpkxvzbnnwuled:Alleatogroup2025!@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+    direct_url = os.getenv("DATABASE_URL")
+    
+    results = {
+        "direct_connection": None,
+        "pooler_connection": None,
+        "urls": {
+            "direct_url": direct_url[:50] + "..." if direct_url else "None",
+            "pooler_url": pooler_url[:50] + "..."
+        }
+    }
+    
+    # Test direct connection
+    try:
+        conn = await asyncpg.connect(direct_url, command_timeout=10)
+        result = await conn.fetchval("SELECT 1")
+        chunks = await conn.fetchval("SELECT COUNT(*) FROM chunks")
+        await conn.close()
+        results["direct_connection"] = {"status": "success", "test_query": result, "chunks_count": chunks}
+    except Exception as e:
+        results["direct_connection"] = {"status": "failed", "error": str(e), "error_type": type(e).__name__}
+    
+    # Test pooler connection  
+    try:
+        conn = await asyncpg.connect(pooler_url, command_timeout=10)
+        result = await conn.fetchval("SELECT 1")
+        chunks = await conn.fetchval("SELECT COUNT(*) FROM chunks")
+        await conn.close()
+        results["pooler_connection"] = {"status": "success", "test_query": result, "chunks_count": chunks}
+    except Exception as e:
+        results["pooler_connection"] = {"status": "failed", "error": str(e), "error_type": type(e).__name__}
+    
+    return results
