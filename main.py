@@ -233,8 +233,15 @@ async def chat_stream(request: ChatRequest):
 @app.get("/test-db")
 async def test_database_connection():
     """Test database connection and dependencies."""
+    import os
+    
     try:
         from shared.ai.agent_deps import AgentDeps
+        
+        # Check environment first
+        database_url = os.getenv("DATABASE_URL")
+        db_url_present = database_url is not None
+        db_url_length = len(database_url) if database_url else 0
         
         deps = AgentDeps()
         await deps.initialize()
@@ -243,21 +250,36 @@ async def test_database_connection():
         if deps.db_pool and hasattr(deps.db_pool, 'acquire'):
             async with deps.db_pool.acquire() as conn:
                 result = await conn.fetchval("SELECT 1")
+                # Test if we can query the correct tables
+                chunk_count = await conn.fetchval("SELECT COUNT(*) FROM chunks")
+                doc_count = await conn.fetchval("SELECT COUNT(*) FROM documents")
         else:
             result = "Database pool is None - fallback mode active"
+            chunk_count = 0
+            doc_count = 0
         
         return {
             "status": "success",
             "database_connection": deps.db_pool is not None,
             "test_query_result": result,
             "db_pool_initialized": deps.db_pool.pool is not None if deps.db_pool else False,
-            "fallback_mode": deps.db_pool is None
+            "fallback_mode": deps.db_pool is None,
+            "environment_check": {
+                "DATABASE_URL_present": db_url_present,
+                "DATABASE_URL_length": db_url_length,
+                "DATABASE_URL_preview": database_url[:50] + "..." if database_url else "None"
+            },
+            "table_counts": {
+                "chunks": chunk_count,
+                "documents": doc_count
+            }
         }
         
     except Exception as e:
         return {
             "status": "error", 
             "error": str(e),
+            "error_type": type(e).__name__,
             "database_connection": False
         }
 
