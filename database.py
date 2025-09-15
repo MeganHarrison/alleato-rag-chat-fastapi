@@ -17,8 +17,8 @@ class Database:
         
         # If on Render, use connection pooler
         if os.getenv("RENDER"):
-            # Use Supabase connection pooler for Render
-            self.database_url = "postgresql://postgres.lgveqfnpkxvzbnnwuled:Alleatogroup2025!@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+            # Use Supabase connection pooler for Render (note: postgres:// not postgresql://)
+            self.database_url = "postgres://postgres.lgveqfnpkxvzbnnwuled:Alleatogroup2025!@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
             print("🔄 Using Supabase connection pooler for Render")
     
     async def connect(self):
