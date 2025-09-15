@@ -50,9 +50,27 @@ async def root():
 
 @app.get("/health")
 async def health():
+    """Fast health check for Railway."""
+    return {"status": "healthy"}
+
+@app.get("/healthz")
+async def healthz():
+    """Alternative health endpoint name."""
+    return {"ok": True}
+
+@app.get("/readyz") 
+async def readyz():
+    """Detailed readiness check."""
+    try:
+        # Quick DB test
+        await db.connect()
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)[:50]}"
+    
     return {
-        "status": "healthy",
-        "database": "testing...",
+        "status": "ready",
+        "database": db_status,
         "llm": "configured"
     }
 
@@ -125,3 +143,22 @@ async def chat(request: ChatRequest):
             response=f"Error: {str(e)}",
             session_id=request.session_id or str(uuid.uuid4())
         )
+
+# Railway/production server startup
+if __name__ == "__main__":
+    import os
+    import uvicorn
+    
+    # Railway provides PORT environment variable
+    port = int(os.getenv("PORT", "8000"))
+    
+    print(f"🚀 Starting server on 0.0.0.0:{port}")
+    
+    # CRITICAL: Must bind to 0.0.0.0 and use Railway's PORT
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",  # Railway requirement
+        port=port,       # Railway's assigned port
+        workers=1,       # Limit memory usage
+        log_level="info"
+    )
