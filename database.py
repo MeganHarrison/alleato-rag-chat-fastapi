@@ -10,9 +10,16 @@ load_dotenv()
 class Database:
     def __init__(self):
         self.pool = None
+        # Try connection pooler first, then direct connection
         self.database_url = os.getenv("DATABASE_URL")
         if not self.database_url:
             raise ValueError("DATABASE_URL not set")
+        
+        # If on Render, use connection pooler
+        if os.getenv("RENDER"):
+            # Use Supabase connection pooler for Render
+            self.database_url = "postgresql://postgres.lgveqfnpkxvzbnnwuled:Alleatogroup2025!@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+            print("🔄 Using Supabase connection pooler for Render")
     
     async def connect(self):
         """Connect to database."""
