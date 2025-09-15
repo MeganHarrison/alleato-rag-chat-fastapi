@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     )
     
     llm_model: str = Field(
-        default="gpt-4o-mini",
+        default="gpt-5",
         description="Model to use for search and summarization"
     )
     

@@ -28,7 +28,7 @@ if [[ ! -f .env ]]; then
 # Alleato RAG Agent Configuration
 DATABASE_URL=postgresql://user:pass@localhost:5432/dbname
 OPENAI_API_KEY=your_openai_api_key_here
-LLM_MODEL=gpt-4o-mini
+LLM_MODEL=gpt-5
 LLM_BASE_URL=https://api.openai.com/v1
 EMBEDDING_MODEL=text-embedding-3-small
 EOF
