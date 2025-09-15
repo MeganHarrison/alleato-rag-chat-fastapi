@@ -15,20 +15,28 @@ class Database:
         if not self.database_url:
             raise ValueError("DATABASE_URL not set")
         
-        # If on Render, use connection pooler
+        # Keep the same URL but we'll use different SSL settings for Render
         if os.getenv("RENDER"):
-            # Use Supabase connection pooler for Render (note: postgres:// not postgresql://)
-            self.database_url = "postgres://postgres.lgveqfnpkxvzbnnwuled:Alleatogroup2025!@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
-            print("🔄 Using Supabase connection pooler for Render")
+            print("🔄 Render detected - will use custom SSL settings")
     
     async def connect(self):
         """Connect to database."""
         if not self.pool:
+            # Add SSL and connection settings for cloud deployment
+            ssl_context = None
+            if os.getenv("RENDER"):
+                # Try different connection approaches for Render
+                import ssl
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+            
             self.pool = await asyncpg.create_pool(
                 self.database_url,
                 min_size=1,
                 max_size=5,
-                command_timeout=30
+                command_timeout=30,
+                ssl=ssl_context
             )
             print("✅ Database connected successfully")
     
