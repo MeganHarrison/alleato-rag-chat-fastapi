@@ -70,13 +70,21 @@ class DatabasePool:
             yield connection
 
 
-# Global database pool instance
-db_pool = DatabasePool()
+# Global database pool instance - lazy initialization
+db_pool = None
+
+def get_db_pool():
+    """Get or create the global database pool."""
+    global db_pool
+    if db_pool is None:
+        db_pool = DatabasePool()
+    return db_pool
 
 
 async def initialize_database():
     """Initialize database connection pool."""
-    await db_pool.initialize()
+    pool = get_db_pool()
+    await pool.initialize()
 
 
 async def close_database():

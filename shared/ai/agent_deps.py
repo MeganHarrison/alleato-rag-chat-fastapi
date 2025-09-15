@@ -1,13 +1,14 @@
 """Agent dependencies for RAG system."""
 
-from shared.utils.db_utils import db_pool
+import os
+from shared.utils.db_utils import get_db_pool
 
 
 class AgentDeps:
     """Dependencies for the RAG agent."""
     
     def __init__(self):
-        self.db_pool = db_pool
+        self.db_pool = None
         self.settings = None
         self.user_preferences = {}
         self.query_history = []
@@ -23,10 +24,13 @@ class AgentDeps:
         
         # Initialize database pool with improved connection
         try:
+            self.db_pool = get_db_pool()
             await self.db_pool.initialize()
-            print("Database connection successful in agent deps")
+            print("✅ Database connection successful in agent deps")
         except Exception as db_error:
-            print(f"Database initialization failed, will use API fallbacks: {db_error}")
+            print(f"❌ Database initialization failed: {db_error}")
+            print(f"   DATABASE_URL present: {'DATABASE_URL' in os.environ}")
+            print(f"   DATABASE_URL value: {os.environ.get('DATABASE_URL', 'NOT_SET')[:50]}...")
             # Set db_pool to None to trigger fallback mode
             self.db_pool = None
         
