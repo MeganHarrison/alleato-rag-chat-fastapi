@@ -336,3 +336,39 @@ async def tracing_status():
             "health": "/health"
         }
     }
+
+
+@app.get("/debug/env")
+async def debug_environment():
+    """Debug endpoint to check environment variables."""
+    import os
+    
+    # Check critical environment variables
+    env_vars = {
+        "DATABASE_URL": os.getenv("DATABASE_URL", "NOT_SET")[:50] + "..." if os.getenv("DATABASE_URL") else "NOT_SET",
+        "OPENAI_API_KEY": "SET" if os.getenv("OPENAI_API_KEY") else "NOT_SET", 
+        "LLM_API_KEY": "SET" if os.getenv("LLM_API_KEY") else "NOT_SET",
+        "LLM_MODEL": os.getenv("LLM_MODEL", "NOT_SET"),
+        "LLM_BASE_URL": os.getenv("LLM_BASE_URL", "NOT_SET"),
+        "PORT": os.getenv("PORT", "NOT_SET"),
+        "RENDER": os.getenv("RENDER", "NOT_SET"),
+        "PYTHON_VERSION": os.getenv("PYTHON_VERSION", "NOT_SET")
+    }
+    
+    # Check settings loading
+    try:
+        from shared.utils.config import load_settings
+        settings = load_settings()
+        settings_info = {
+            "database_url_from_settings": settings.database_url[:50] + "..." if settings.database_url else "EMPTY",
+            "llm_api_key_from_settings": "SET" if settings.llm_api_key else "EMPTY", 
+            "llm_model_from_settings": settings.llm_model
+        }
+    except Exception as e:
+        settings_info = {"error": str(e)}
+    
+    return {
+        "environment_variables": env_vars,
+        "settings": settings_info,
+        "all_env_count": len(os.environ)
+    }
